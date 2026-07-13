@@ -96,6 +96,8 @@
     background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");}
   .warm-cast{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;
     background:linear-gradient(180deg, rgba(255,190,110,.35), rgba(255,150,80,.18) 60%, rgba(120,70,30,.25));}
+  .flash-cast{position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;opacity:0;
+    background:radial-gradient(ellipse at 50% 44%, rgba(255,246,226,.55), rgba(255,240,215,.2) 38%, transparent 68%);}
   .live-stamp{
     position:absolute;right:12px;bottom:10px;pointer-events:none;
     font-weight:700;font-size:15px;color:var(--stamp-orange);
@@ -252,6 +254,7 @@
   <div class="viewfinder-frame">
     <video id="video" autoplay playsinline muted></video>
     <div class="warm-cast"></div>
+    <div class="flash-cast"></div>
     <div class="vignette"></div>
     <div class="grain"></div>
     <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div>
@@ -329,9 +332,38 @@
 
 <script>
 (() => {
-  const TOTAL_SHOTS = 24;
-  const DATE_STAMP = "21 07 '26";
-  const BRAND_STAMP = "TUC \u267B @tucswk";
+  /* ============================================================
+     ⚙️  TUC CAM SETTINGS — edit these numbers, nothing else!
+     After editing, commit the change on GitHub and the live
+     site updates in about a minute. Your QR code stays the same.
+     ============================================================ */
+  const SETTINGS = {
+    shots: 24,                    // exposures per roll
+    dateStamp: "21 07 '26",       // orange date stamp on photos
+    brandStamp: "TUC \u267B @tucswk", // green badge on photos
+
+    // Film look — 1.0 is the default. 0 = off, 0.5 = subtle, 1.5 = strong, 2 = maximum
+    warmth: 1.3,                  // orange/golden colour cast
+    fade: 1.4,                    // lifted, faded blacks (aged film feel)
+    grain: 1.7,                   // film grain / noise
+    vignette: 1.5,                // dark soft corners
+    desaturation: 1.15,           // washed-out colours
+    flashIntensity: 1.8           // simulated flash: hot, blown-out centre glow
+  };
+  /* ================= end of settings ========================= */
+
+  const TOTAL_SHOTS = SETTINGS.shots;
+  const DATE_STAMP = SETTINGS.dateStamp;
+  const BRAND_STAMP = SETTINGS.brandStamp;
+  const clamp01 = (v, max) => Math.max(0, Math.min(max, v));
+  const FX = {
+    w: clamp01(SETTINGS.warmth, 2),
+    f: clamp01(SETTINGS.fade, 2),
+    g: clamp01(SETTINGS.grain, 2),
+    v: clamp01(SETTINGS.vignette, 2),
+    d: clamp01(SETTINGS.desaturation, 2),
+    fl: clamp01(SETTINGS.flashIntensity, 2)
+  };
 
   const video = document.getElementById('video');
   const shutter = document.getElementById('shutter');
@@ -358,6 +390,25 @@
   let currentPhoto = null;
   let audioCtx = null;
   let toastTimer = null;
+
+  /* ---------- apply SETTINGS to live preview + labels ---------- */
+  video.style.filter =
+    'sepia(' + (0.38 * FX.w).toFixed(3) + ') ' +
+    'saturate(' + (1 - 0.18 * FX.d).toFixed(3) + ') ' +
+    'contrast(' + (1 - 0.10 * FX.f).toFixed(3) + ') ' +
+    'brightness(' + (1 + 0.06 * FX.f).toFixed(3) + ') ' +
+    'hue-rotate(' + (-8 * FX.w).toFixed(1) + 'deg)';
+  document.querySelector('.warm-cast').style.opacity = Math.min(1, FX.w);
+  document.querySelector('.flash-cast').style.opacity = Math.min(1, 0.5 * FX.fl).toFixed(3);
+  document.querySelector('.grain').style.opacity = (0.09 * FX.g).toFixed(3);
+  document.querySelector('.vignette').style.opacity = Math.min(1, FX.v);
+  document.querySelector('.live-stamp').textContent = DATE_STAMP;
+  counterNum.textContent = TOTAL_SHOTS;
+  startScreen.querySelector('p').textContent =
+    'Your event disposable camera. ' + TOTAL_SHOTS +
+    ' warm-film exposures \u2014 make every snap count. Photos save to your phone.';
+  document.getElementById('reload-film-btn').textContent =
+    '\u21BB Reload film (new roll of ' + TOTAL_SHOTS + ')';
 
   /* ---------- toast ---------- */
   function showToast(msg){
@@ -428,36 +479,51 @@
 
   /* ---------- vintage film processing (pixel-level: works on iOS + Android) ---------- */
   function applyVintage(ctx, w, h){
+    const {w: W, f: F, g: G, v: V, d: D} = FX;
     const imgData = ctx.getImageData(0, 0, w, h);
     const d = imgData.data;
     for (let i = 0; i < d.length; i += 4){
       let r = d[i], g = d[i+1], b = d[i+2];
       const avg = (r + g + b) / 3;
       // gentle desaturation
-      r = r*0.76 + avg*0.24;
-      g = g*0.80 + avg*0.20;
-      b = b*0.72 + avg*0.28;
+      r = r*(1 - 0.24*D) + avg*(0.24*D);
+      g = g*(1 - 0.20*D) + avg*(0.20*D);
+      b = b*(1 - 0.28*D) + avg*(0.28*D);
       // warm shift
-      r = r*1.12 + 12;
-      g = g*1.03 + 5;
-      b = b*0.86;
+      r = r*(1 + 0.12*W) + 12*W;
+      g = g*(1 + 0.03*W) + 5*W;
+      b = b*(1 - 0.14*W);
       // faded blacks
-      r = r*0.88 + 25;
-      g = g*0.88 + 22;
-      b = b*0.88 + 18;
+      r = r*(1 - 0.12*F) + 25*F;
+      g = g*(1 - 0.12*F) + 22*F;
+      b = b*(1 - 0.12*F) + 18*F;
       // film grain
-      const n = (Math.random() - 0.5) * 16;
+      const n = (Math.random() - 0.5) * 16 * G;
       d[i]   = Math.max(0, Math.min(255, r + n));
       d[i+1] = Math.max(0, Math.min(255, g + n));
       d[i+2] = Math.max(0, Math.min(255, b + n));
     }
     ctx.putImageData(imgData, 0, 0);
+    // simulated flash — warm blown-out centre, like direct on-camera flash
+    if (FX.fl > 0){
+      const cx = w/2, cy = h*0.44; // slightly above centre, where faces are
+      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w,h)*0.62);
+      glow.addColorStop(0, 'rgba(255,246,226,' + Math.min(1, 0.30 * FX.fl).toFixed(3) + ')');
+      glow.addColorStop(0.38, 'rgba(255,240,215,' + Math.min(1, 0.12 * FX.fl).toFixed(3) + ')');
+      glow.addColorStop(1, 'rgba(255,240,215,0)');
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     // vignette
-    const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.42, w/2, h/2, Math.max(w,h)*0.72);
-    grad.addColorStop(0, 'rgba(46,26,8,0)');
-    grad.addColorStop(1, 'rgba(46,26,8,0.4)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
+    if (V > 0){
+      const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.42, w/2, h/2, Math.max(w,h)*0.72);
+      grad.addColorStop(0, 'rgba(46,26,8,0)');
+      grad.addColorStop(1, 'rgba(46,26,8,' + (0.4 * V).toFixed(3) + ')');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    }
   }
 
   function stampPhoto(ctx, w, h){
