@@ -342,13 +342,15 @@
     dateStamp: "21 07 '26",       // orange date stamp on photos
     brandStamp: "TUC \u267B @tucswk", // green badge on photos
 
-    // Film look — 1.0 is the default. 0 = off, 0.5 = subtle, 1.5 = strong, 2 = maximum
-    warmth: 1.3,                  // orange/golden colour cast
-    fade: 1.4,                    // lifted, faded blacks (aged film feel)
-    grain: 1.7,                   // film grain / noise
-    vignette: 1.5,                // dark soft corners
-    desaturation: 1.15,           // washed-out colours
-    flashIntensity: 1.8           // simulated flash: hot, blown-out centre glow
+    // Film look — recalibrated so 1.0 = real flash-disposable look.
+    // 0 = off, 0.5 = subtle, 1.5 = strong, 2 = maximum
+    warmth: 1.0,                  // warm highlights / cooler shadows
+    fade: 1.0,                    // matte, lifted blacks
+    grain: 1.2,                   // fine high-ISO film grain
+    vignette: 1.2,                // background drop-off from the flash
+    desaturation: 0.9,            // slightly muted colours
+    flashIntensity: 1.2,          // bright flash bloom on the subject
+    lightLeak: 1.0                // random red streak on ~1 in 4 photos (0 = never)
   };
   /* ================= end of settings ========================= */
 
@@ -362,7 +364,8 @@
     g: clamp01(SETTINGS.grain, 2),
     v: clamp01(SETTINGS.vignette, 2),
     d: clamp01(SETTINGS.desaturation, 2),
-    fl: clamp01(SETTINGS.flashIntensity, 2)
+    fl: clamp01(SETTINGS.flashIntensity, 2),
+    ll: clamp01(SETTINGS.lightLeak, 2)
   };
 
   const video = document.getElementById('video');
@@ -393,12 +396,12 @@
 
   /* ---------- apply SETTINGS to live preview + labels ---------- */
   video.style.filter =
-    'sepia(' + (0.38 * FX.w).toFixed(3) + ') ' +
-    'saturate(' + (1 - 0.18 * FX.d).toFixed(3) + ') ' +
-    'contrast(' + (1 - 0.10 * FX.f).toFixed(3) + ') ' +
-    'brightness(' + (1 + 0.06 * FX.f).toFixed(3) + ') ' +
-    'hue-rotate(' + (-8 * FX.w).toFixed(1) + 'deg)';
-  document.querySelector('.warm-cast').style.opacity = Math.min(1, FX.w);
+    'sepia(' + (0.20 * FX.w).toFixed(3) + ') ' +
+    'saturate(' + (1.05 - 0.18 * FX.d).toFixed(3) + ') ' +
+    'contrast(' + (1.10 - 0.05 * FX.f).toFixed(3) + ') ' +
+    'brightness(' + (1 + 0.05 * FX.f).toFixed(3) + ') ' +
+    'hue-rotate(' + (-6 * FX.w).toFixed(1) + 'deg)';
+  document.querySelector('.warm-cast').style.opacity = (0.55 * FX.w).toFixed(3);
   document.querySelector('.flash-cast').style.opacity = Math.min(1, 0.5 * FX.fl).toFixed(3);
   document.querySelector('.grain').style.opacity = (0.09 * FX.g).toFixed(3);
   document.querySelector('.vignette').style.opacity = Math.min(1, FX.v);
@@ -477,52 +480,70 @@
     }catch(e){ /* sound is optional */ }
   }
 
-  /* ---------- vintage film processing (pixel-level: works on iOS + Android) ---------- */
+  /* ---------- vintage film processing (pixel-level: works on iOS + Android)
+     Tuned to real flash-disposable photos: punchy contrast, matte lifted
+     blacks, warm highlights with cooler shadows, fine grain, flash bloom,
+     and an occasional red light-leak streak. ---------- */
   function applyVintage(ctx, w, h){
-    const {w: W, f: F, g: G, v: V, d: D} = FX;
+    const {w: W, f: F, g: G, v: V, d: D, fl: FL, ll: LL} = FX;
+    // build tone-curve lookup tables (fast, identical results on iOS + Android)
+    const lutR = new Uint8ClampedArray(256), lutG = new Uint8ClampedArray(256), lutB = new Uint8ClampedArray(256);
+    for (let i = 0; i < 256; i++){
+      const x = i / 255;
+      // punchy S-curve — flash photos are contrasty, not flat
+      const s = x * x * (3 - 2 * x);
+      let y = x + (s - x) * 0.42;
+      // matte fade — lift the blacks without milking the highlights
+      y = y + 0.12 * F * (1 - y) * (1 - y);
+      // channel curves: warm highlights, cooler shadows, hint of magenta
+      lutR[i] = Math.pow(y, 1 - 0.11 * W) * (1 + 0.025 * W) * 255;
+      lutG[i] = Math.pow(y, 1 - 0.015 * W) * (1 - 0.018 * W) * 255;
+      lutB[i] = Math.pow(y, 1 + 0.13 * W) * 255;
+    }
     const imgData = ctx.getImageData(0, 0, w, h);
     const d = imgData.data;
+    const mixD = 0.18 * D;
     for (let i = 0; i < d.length; i += 4){
-      let r = d[i], g = d[i+1], b = d[i+2];
+      const r = d[i], g = d[i+1], b = d[i+2];
       const avg = (r + g + b) / 3;
-      // gentle desaturation
-      r = r*(1 - 0.24*D) + avg*(0.24*D);
-      g = g*(1 - 0.20*D) + avg*(0.20*D);
-      b = b*(1 - 0.28*D) + avg*(0.28*D);
-      // warm shift
-      r = r*(1 + 0.12*W) + 12*W;
-      g = g*(1 + 0.03*W) + 5*W;
-      b = b*(1 - 0.14*W);
-      // faded blacks
-      r = r*(1 - 0.12*F) + 25*F;
-      g = g*(1 - 0.12*F) + 22*F;
-      b = b*(1 - 0.12*F) + 18*F;
-      // film grain
-      const n = (Math.random() - 0.5) * 16 * G;
-      d[i]   = Math.max(0, Math.min(255, r + n));
-      d[i+1] = Math.max(0, Math.min(255, g + n));
-      d[i+2] = Math.max(0, Math.min(255, b + n));
+      const n = (Math.random() - 0.5) * 14 * G; // fine film grain
+      d[i]   = lutR[(r + (avg - r) * mixD) | 0] + n;
+      d[i+1] = lutG[(g + (avg - g) * mixD) | 0] + n;
+      d[i+2] = lutB[(b + (avg - b) * mixD) | 0] + n;
     }
     ctx.putImageData(imgData, 0, 0);
-    // simulated flash — warm blown-out centre, like direct on-camera flash
-    if (FX.fl > 0){
-      const cx = w/2, cy = h*0.44; // slightly above centre, where faces are
-      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w,h)*0.62);
-      glow.addColorStop(0, 'rgba(255,246,226,' + Math.min(1, 0.30 * FX.fl).toFixed(3) + ')');
-      glow.addColorStop(0.38, 'rgba(255,240,215,' + Math.min(1, 0.12 * FX.fl).toFixed(3) + ')');
-      glow.addColorStop(1, 'rgba(255,240,215,0)');
+    // simulated flash — bright bloom on the subject, like direct on-camera flash
+    if (FL > 0){
+      const cx = w/2, cy = h*0.45;
+      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w,h)*0.58);
+      glow.addColorStop(0, 'rgba(255,247,232,' + Math.min(1, 0.30 * FL).toFixed(3) + ')');
+      glow.addColorStop(0.4, 'rgba(255,241,220,' + Math.min(1, 0.12 * FL).toFixed(3) + ')');
+      glow.addColorStop(1, 'rgba(255,241,220,0)');
       ctx.globalCompositeOperation = 'screen';
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, w, h);
       ctx.globalCompositeOperation = 'source-over';
     }
-    // vignette
+    // vignette — background drop-off away from the flash
     if (V > 0){
       const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.42, w/2, h/2, Math.max(w,h)*0.72);
-      grad.addColorStop(0, 'rgba(46,26,8,0)');
-      grad.addColorStop(1, 'rgba(46,26,8,' + (0.4 * V).toFixed(3) + ')');
+      grad.addColorStop(0, 'rgba(24,14,10,0)');
+      grad.addColorStop(1, 'rgba(24,14,10,' + Math.min(1, 0.4 * V).toFixed(3) + ')');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, w, h);
+    }
+    // occasional red light-leak streak on one edge (~1 in 4 photos)
+    if (LL > 0 && Math.random() < 0.28){
+      const left = Math.random() < 0.5;
+      const lw = w * (0.10 + Math.random() * 0.12);
+      const grad = ctx.createLinearGradient(left ? 0 : w, 0, left ? lw : w - lw, 0);
+      grad.addColorStop(0, 'rgba(255,54,32,' + Math.min(1, 0.55 * LL).toFixed(3) + ')');
+      grad.addColorStop(0.55, 'rgba(255,120,50,' + Math.min(1, 0.22 * LL).toFixed(3) + ')');
+      grad.addColorStop(1, 'rgba(255,120,50,0)');
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = grad;
+      ctx.fillRect(left ? 0 : w - lw, 0, lw, h);
+      ctx.globalCompositeOperation = 'source-over';
     }
   }
 
