@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#8A6A3F">
+<title>TUC Disposable Camera · Pilot Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --kraft:#C9A876;
+    --kraft-dark:#A8865A;
+    --kraft-deep:#7A5C36;
+    --cream:#F2E8D5;
+    --tuc-green:#3DC94F;
+    --forest:#1A4A2E;
+    --lime:#A8E63D;
+    --shutter-red:#D93B2B;
+    --stamp-orange:#FFA33C;
+    --ink:#2A2015;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overscroll-behavior:none}
+  body{
+    font-family:'Space Mono',ui-monospace,monospace;
+    background:#4a3a24;
+    display:flex;justify-content:center;
+    color:var(--ink);
+    user-select:none;-webkit-user-select:none;
+    touch-action:manipulation;
+  }
+  button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit}
+
+  /* ---------- CAMERA BODY (kraft cardboard) ---------- */
+  #camera-body{
+    position:relative;width:100%;max-width:480px;height:100dvh;
+    display:flex;flex-direction:column;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.27 0 0 0 0 0.15 0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"),
+      linear-gradient(160deg,#D4B383 0%,var(--kraft) 40%,var(--kraft-dark) 100%);
+    box-shadow:inset 0 0 60px rgba(70,50,25,.35);
+    padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 10px);
+  }
+
+  /* ---------- TOP PLATE ---------- */
+  .top-plate{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 4px 10px}
+  .brand{display:flex;align-items:center;gap:9px}
+  .brand-mark{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--tuc-green);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 5px rgba(0,0,0,.3), inset 0 -2px 4px rgba(0,0,0,.2);
+  }
+  .brand-text{line-height:1.05}
+  .brand-text .name{font-family:'Poppins','Anton','Arial Narrow',sans-serif;font-weight:800;font-size:17px;letter-spacing:.5px;color:var(--forest)}
+  .brand-text .sub{font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--kraft-deep)}
+
+  /* film counter window + winder — the signature */
+  .counter-cluster{display:flex;align-items:center;gap:8px}
+  .counter-window{
+    background:#1c1710;border-radius:6px;padding:5px 10px;text-align:center;
+    box-shadow:inset 0 3px 6px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.25);
+    border:2px solid var(--kraft-deep);min-width:58px;
+  }
+  .counter-window .num{
+    font-weight:700;font-size:21px;color:var(--stamp-orange);
+    text-shadow:0 0 7px rgba(255,163,60,.55);transition:transform .12s;
+  }
+  .counter-window .num.tick{transform:translateY(-3px)}
+  .counter-window .lbl{font-size:7.5px;letter-spacing:1.4px;color:#8a7a5a;font-weight:700}
+  .winder{
+    width:22px;height:44px;border-radius:5px;
+    background:repeating-linear-gradient(0deg,#5f4a2c 0 3px,#7A5C36 3px 6px);
+    box-shadow:inset 0 0 5px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.35);
+    transition:background-position .25s;
+  }
+
+  /* ---------- VIEWFINDER ---------- */
+  .viewfinder-frame{
+    position:relative;flex:1;min-height:0;border-radius:14px;
+    background:#181410;
+    border:7px solid var(--kraft-deep);
+    box-shadow:inset 0 0 26px rgba(0,0,0,.9), 0 3px 8px rgba(0,0,0,.3);
+    overflow:hidden;
+  }
+  #video{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    filter:sepia(.38) saturate(.82) contrast(.9) brightness(1.06) hue-rotate(-8deg);
+  }
+  #video.mirrored{transform:scaleX(-1)}
+  .vignette{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 52%, rgba(46,26,8,.42) 100%);}
+  .grain{position:absolute;inset:0;pointer-events:none;opacity:.09;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");}
+  .warm-cast{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;
+    background:linear-gradient(180deg, rgba(255,190,110,.35), rgba(255,150,80,.18) 60%, rgba(120,70,30,.25));}
+  .live-stamp{
+    position:absolute;right:12px;bottom:10px;pointer-events:none;
+    font-weight:700;font-size:15px;color:var(--stamp-orange);
+    text-shadow:0 0 8px rgba(255,140,40,.85);letter-spacing:2px;opacity:.9;
+  }
+  #flash-fx{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .09s}
+  #flash-fx.pop{opacity:.95}
+
+  /* corner brackets */
+  .corner{position:absolute;width:22px;height:22px;border:3px solid rgba(255,255,255,.55);pointer-events:none}
+  .corner.tl{top:12px;left:12px;border-right:none;border-bottom:none}
+  .corner.tr{top:12px;right:12px;border-left:none;border-bottom:none}
+  .corner.bl{bottom:12px;left:12px;border-right:none;border-top:none}
+  .corner.br{bottom:34px;right:12px;border-left:none;border-top:none;display:none}
+
+  /* overlay screens inside viewfinder */
+  .vf-overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:14px;padding:26px;background:rgba(20,15,8,.9);z-index:5;
+  }
+  .vf-overlay[hidden]{display:none}
+  .vf-overlay h2{font-family:'Anton',Impact,sans-serif;font-size:29px;letter-spacing:2px;color:var(--cream)}
+  .vf-overlay h2 .green{color:var(--tuc-green)}
+  .vf-overlay p{font-size:12px;line-height:1.6;color:#cbbfa6;max-width:270px}
+  /* TUC brand start screen — matches official logo lockup */
+  .vf-overlay.brand-screen{background:var(--tuc-green);gap:10px}
+  .vf-overlay.brand-screen p{color:#EAFBEA}
+  .vf-overlay.brand-screen .event-tag{color:var(--forest)}
+  .vf-overlay.brand-screen .pill-btn{
+    background:#fff;color:var(--forest);
+    box-shadow:0 4px 0 var(--forest), 0 6px 12px rgba(0,0,0,.25);
+  }
+  .vf-overlay.brand-screen .pill-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--forest)}
+  .tuc-wordmark{
+    font-family:'Poppins','Anton',sans-serif;font-weight:800;
+    font-size:24px;letter-spacing:.5px;color:#fff;line-height:1.1;text-align:center;
+  }
+  .tuc-logo{width:112px;height:auto;display:block;margin:2px auto}
+  @media (max-height:640px){ .tuc-logo{width:84px} .tuc-wordmark{font-size:20px} }
+  .pill-btn{
+    font-weight:700;font-size:14px;letter-spacing:1px;padding:13px 26px;border-radius:999px;
+    background:linear-gradient(180deg,var(--lime),var(--tuc-green));color:var(--forest);
+    box-shadow:0 4px 0 var(--forest), 0 6px 12px rgba(0,0,0,.4);
+  }
+  .pill-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--forest)}
+  .ghost-btn{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--lime);text-decoration:underline;text-underline-offset:4px}
+  .event-tag{font-size:10px;letter-spacing:2px;color:var(--stamp-orange);font-weight:700}
+
+  /* ---------- BOTTOM PLATE ---------- */
+  .bottom-plate{display:flex;align-items:center;justify-content:space-between;padding:14px 8px 4px}
+  .side-btn{
+    width:56px;height:56px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    background:linear-gradient(180deg,var(--cream),#DECFAF);
+    box-shadow:0 3px 0 var(--kraft-deep), 0 5px 8px rgba(0,0,0,.25);
+    font-size:20px;position:relative;
+  }
+  .side-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--kraft-deep)}
+  .side-btn .cap{font-size:7px;font-weight:700;letter-spacing:1px;color:var(--kraft-deep)}
+  #roll-count{
+    position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;
+    background:var(--forest);color:var(--lime);font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #shutter{
+    width:84px;height:84px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #F0664F, var(--shutter-red) 60%, #A32517);
+    border:5px solid var(--cream);
+    box-shadow:0 5px 0 #8a1f12, 0 8px 16px rgba(0,0,0,.4), inset 0 -4px 8px rgba(0,0,0,.3);
+  }
+  #shutter:active{transform:translateY(4px);box-shadow:0 1px 0 #8a1f12, inset 0 -2px 6px rgba(0,0,0,.4)}
+  #shutter:disabled{filter:grayscale(.7);opacity:.6}
+  .tagline{
+    text-align:center;font-size:8.5px;letter-spacing:1.6px;font-weight:700;
+    color:var(--kraft-deep);padding-top:9px;
+  }
+
+  /* ---------- TOAST ---------- */
+  #toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 120px);transform:translateX(-50%) translateY(20px);
+    background:var(--forest);color:var(--cream);font-size:12px;font-weight:700;letter-spacing:.5px;
+    padding:10px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;z-index:60;white-space:nowrap;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- FILM ROLL (gallery) ---------- */
+  #gallery{
+    position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;
+    background:rgba(26,20,10,.97);transform:translateY(100%);transition:transform .3s ease;
+    max-width:480px;margin:0 auto;
+  }
+  #gallery.open{transform:translateY(0)}
+  .gal-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 14px) 18px 14px;
+    border-bottom:2px dashed var(--kraft-deep);
+  }
+  .gal-head h3{font-family:'Anton',Impact,sans-serif;font-size:20px;letter-spacing:2px;color:var(--cream)}
+  .gal-head h3 span{color:var(--tuc-green)}
+  .gal-close{font-size:13px;font-weight:700;color:var(--stamp-orange);letter-spacing:1px;padding:8px}
+  .gal-grid{
+    flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+    padding:14px 14px calc(env(safe-area-inset-bottom) + 20px);align-content:start;
+  }
+  .gal-grid:empty::after{
+    content:"No snaps yet — go take some! 📸";grid-column:1/-1;text-align:center;
+    color:#8a7a5a;font-size:12px;padding-top:60px;
+  }
+  .thumb{aspect-ratio:3/4;border-radius:6px;overflow:hidden;border:3px solid var(--cream);
+    box-shadow:0 3px 6px rgba(0,0,0,.5);padding:0;background:#000}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+  /* photo viewer */
+  #viewer{position:fixed;inset:0;z-index:50;background:rgba(12,9,4,.97);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;padding:20px;max-width:480px;margin:0 auto}
+  #viewer[hidden]{display:none}
+  #viewer img{max-width:100%;max-height:62vh;border:6px solid var(--cream);border-radius:4px;
+    box-shadow:0 8px 24px rgba(0,0,0,.6)}
+  .viewer-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .viewer-actions .pill-btn{font-size:13px;padding:11px 20px}
+  .viewer-actions .plain{background:linear-gradient(180deg,var(--cream),#DECFAF);color:var(--forest);
+    box-shadow:0 4px 0 var(--kraft-deep)}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="camera-body">
+
+  <!-- top plate -->
+  <div class="top-plate">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 40 40" width="26" height="26" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="25" cy="11" r="8" fill="#C8F169"/>
+          <path d="M16,9 C 21,17 26,21 26,27 A10,10 0 1,1 6,27 C 6,21 11,17 16,9 Z" fill="#FFFFFF"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="name">TUC CAM</div>
+        <div class="sub">PILOT EDITION · @tucswk</div>
+      </div>
+    </div>
+    <div class="counter-cluster">
+      <div class="counter-window">
+        <div class="num" id="counter-num">24</div>
+        <div class="lbl">EXPOSURES</div>
+      </div>
+      <div class="winder" id="winder" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <!-- viewfinder -->
+  <div class="viewfinder-frame">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="warm-cast"></div>
+    <div class="vignette"></div>
+    <div class="grain"></div>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div>
+    <div class="live-stamp">21 07 '26</div>
+    <div id="flash-fx"></div>
+
+    <!-- start screen — official TUC logo lockup -->
+    <div class="vf-overlay brand-screen" id="start-screen">
+      <div class="event-tag">21.07.26 · NAGAI PANGAN, KUCHING</div>
+      <div class="tuc-wordmark">THE UPCYCLE</div>
+      <svg class="tuc-logo" viewBox="0 0 200 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The Upcycle Collective logo">
+        <circle cx="48" cy="42" r="30" fill="#FFFFFF"/>
+        <circle cx="77" cy="67" r="27" fill="#C8F169"/>
+        <path d="M72,76 C 88,102 106,116 106,136 A34,34 0 1,1 38,136 C 38,116 56,102 72,76 Z" fill="#FFFFFF"/>
+        <path d="M138,32 q12,15 0,30 t0,30 t0,30 t0,30" fill="none" stroke="#14502D" stroke-width="24"/>
+        <path d="M176,32 q12,15 0,30 t0,30 t0,30 t0,30" fill="none" stroke="#FFFFFF" stroke-width="24"/>
+      </svg>
+      <div class="tuc-wordmark">COLLECTIVE</div>
+      <p>Your event disposable camera. 24 warm-film exposures — make every snap count. Photos save to your phone.</p>
+      <button class="pill-btn" id="start-btn">📸 OPEN CAMERA</button>
+      <p style="font-size:10px">Tap "Allow" when your browser asks for camera access</p>
+    </div>
+
+    <!-- error screen -->
+    <div class="vf-overlay" id="error-screen" hidden>
+      <h2>NO <span class="green">CAMERA</span></h2>
+      <p id="error-msg">Camera access was blocked. Open your browser settings, allow camera access for this page, then try again.</p>
+      <button class="pill-btn" id="retry-btn">TRY AGAIN</button>
+    </div>
+
+    <!-- film finished screen -->
+    <div class="vf-overlay" id="finished-screen" hidden>
+      <div class="event-tag">ROLL COMPLETE</div>
+      <h2>FILM <span class="green">FINISHED!</span></h2>
+      <p>Connecting people, circulating value, inspiring change. Thanks for snapping with us 💚</p>
+      <button class="pill-btn" id="finished-gallery-btn">VIEW FILM ROLL</button>
+      <button class="ghost-btn" id="reload-film-btn">↻ Reload film (new roll of 24)</button>
+    </div>
+  </div>
+
+  <!-- bottom plate -->
+  <div class="bottom-plate">
+    <button class="side-btn" id="gallery-btn" aria-label="Open film roll">
+      🎞️<span class="cap">ROLL</span>
+      <span id="roll-count" hidden>0</span>
+    </button>
+    <button id="shutter" aria-label="Take photo" disabled></button>
+    <button class="side-btn" id="flip-btn" aria-label="Flip camera" disabled>
+      🔄<span class="cap">FLIP</span>
+    </button>
+  </div>
+  <div class="tagline">CONNECTING PEOPLE · CIRCULATING VALUE · INSPIRING CHANGE</div>
+</div>
+
+<!-- film roll gallery -->
+<div id="gallery" aria-label="Film roll">
+  <div class="gal-head">
+    <h3>FILM <span>ROLL</span></h3>
+    <button class="gal-close" id="gallery-close">CLOSE ✕</button>
+  </div>
+  <div class="gal-grid" id="gal-grid"></div>
+</div>
+
+<!-- single photo viewer -->
+<div id="viewer" hidden>
+  <img id="viewer-img" alt="Your snap">
+  <div class="viewer-actions">
+    <button class="pill-btn" id="share-btn">📤 SAVE / SHARE</button>
+    <button class="pill-btn plain" id="download-btn">⬇ DOWNLOAD</button>
+    <button class="pill-btn plain" id="viewer-close">CLOSE</button>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+  const TOTAL_SHOTS = 24;
+  const DATE_STAMP = "21 07 '26";
+  const BRAND_STAMP = "TUC \u267B @tucswk";
+
+  const video = document.getElementById('video');
+  const shutter = document.getElementById('shutter');
+  const flipBtn = document.getElementById('flip-btn');
+  const counterNum = document.getElementById('counter-num');
+  const winder = document.getElementById('winder');
+  const flashFx = document.getElementById('flash-fx');
+  const startScreen = document.getElementById('start-screen');
+  const errorScreen = document.getElementById('error-screen');
+  const errorMsg = document.getElementById('error-msg');
+  const finishedScreen = document.getElementById('finished-screen');
+  const galGrid = document.getElementById('gal-grid');
+  const gallery = document.getElementById('gallery');
+  const rollCount = document.getElementById('roll-count');
+  const viewer = document.getElementById('viewer');
+  const viewerImg = document.getElementById('viewer-img');
+  const toast = document.getElementById('toast');
+
+  let stream = null;
+  let facing = 'environment';
+  let shotsLeft = TOTAL_SHOTS;
+  let busy = false;
+  let photos = []; // {blob, url, name}
+  let currentPhoto = null;
+  let audioCtx = null;
+  let toastTimer = null;
+
+  /* ---------- toast ---------- */
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  /* ---------- camera ---------- */
+  async function startCamera(){
+    stopCamera();
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode: facing, width:{ideal:1920}, height:{ideal:1440} },
+        audio:false
+      });
+      video.srcObject = stream;
+      video.classList.toggle('mirrored', facing === 'user');
+      await video.play().catch(()=>{});
+      startScreen.hidden = true;
+      errorScreen.hidden = true;
+      shutter.disabled = shotsLeft <= 0;
+      flipBtn.disabled = false;
+      if (shotsLeft <= 0) finishedScreen.hidden = false;
+    }catch(err){
+      startScreen.hidden = true;
+      errorScreen.hidden = false;
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost'){
+        errorMsg.textContent = "This page must be opened over an https:// link for the camera to work. Check the QR code URL.";
+      } else if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')){
+        errorMsg.textContent = "Camera access was blocked. In your browser settings, allow camera access for this page, then tap Try Again.";
+      } else if (err && err.name === 'NotFoundError'){
+        errorMsg.textContent = "No camera was found on this device.";
+      } else {
+        errorMsg.textContent = "Couldn't start the camera (" + (err && err.name ? err.name : "unknown error") + "). Close other apps using the camera and try again.";
+      }
+    }
+  }
+  function stopCamera(){
+    if (stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+
+  /* ---------- shutter sound (synthesized, no files) ---------- */
+  function clickSound(){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t = audioCtx.currentTime;
+      [0, 0.055].forEach((offset, i) => {
+        const dur = i === 0 ? 0.03 : 0.05;
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let s = 0; s < data.length; s++){
+          data[s] = (Math.random()*2-1) * Math.pow(1 - s/data.length, 2.5);
+        }
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        const g = audioCtx.createGain();
+        g.gain.value = i === 0 ? 0.5 : 0.3;
+        const f = audioCtx.createBiquadFilter();
+        f.type = 'bandpass'; f.frequency.value = i === 0 ? 2600 : 1200;
+        src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+        src.start(t + offset);
+      });
+    }catch(e){ /* sound is optional */ }
+  }
+
+  /* ---------- vintage film processing (pixel-level: works on iOS + Android) ---------- */
+  function applyVintage(ctx, w, h){
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4){
+      let r = d[i], g = d[i+1], b = d[i+2];
+      const avg = (r + g + b) / 3;
+      // gentle desaturation
+      r = r*0.76 + avg*0.24;
+      g = g*0.80 + avg*0.20;
+      b = b*0.72 + avg*0.28;
+      // warm shift
+      r = r*1.12 + 12;
+      g = g*1.03 + 5;
+      b = b*0.86;
+      // faded blacks
+      r = r*0.88 + 25;
+      g = g*0.88 + 22;
+      b = b*0.88 + 18;
+      // film grain
+      const n = (Math.random() - 0.5) * 16;
+      d[i]   = Math.max(0, Math.min(255, r + n));
+      d[i+1] = Math.max(0, Math.min(255, g + n));
+      d[i+2] = Math.max(0, Math.min(255, b + n));
+    }
+    ctx.putImageData(imgData, 0, 0);
+    // vignette
+    const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.42, w/2, h/2, Math.max(w,h)*0.72);
+    grad.addColorStop(0, 'rgba(46,26,8,0)');
+    grad.addColorStop(1, 'rgba(46,26,8,0.4)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function stampPhoto(ctx, w, h){
+    const base = Math.max(18, Math.round(w * 0.032));
+    // retro orange date stamp, bottom right
+    ctx.font = '700 ' + base + 'px "Space Mono", monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.shadowColor = 'rgba(255,140,40,0.9)';
+    ctx.shadowBlur = base * 0.55;
+    ctx.fillStyle = '#FFA33C';
+    ctx.fillText(DATE_STAMP, w - base, h - base*0.8);
+    ctx.shadowBlur = 0;
+    // TUC green badge, bottom left
+    const bh = base * 1.5, pad = base * 0.55;
+    ctx.font = '700 ' + Math.round(base*0.72) + 'px "Space Mono", monospace';
+    const tw = ctx.measureText(BRAND_STAMP).width;
+    ctx.fillStyle = 'rgba(26,74,46,0.82)';
+    roundRect(ctx, base*0.8, h - base*0.8 - bh, tw + pad*2, bh, bh/2);
+    ctx.fill();
+    ctx.fillStyle = '#A8E63D';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(BRAND_STAMP, base*0.8 + pad, h - base*0.8 - bh/2 + 1);
+  }
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+  }
+
+  /* ---------- take photo ---------- */
+  async function takePhoto(){
+    if (busy || shotsLeft <= 0 || !stream) return;
+    busy = true;
+    shutter.disabled = true;
+    clickSound();
+    flashFx.classList.add('pop');
+    setTimeout(() => flashFx.classList.remove('pop'), 120);
+
+    try{
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh) throw new Error('no frame');
+      const MAX = 1600;
+      const scale = Math.min(1, MAX / Math.max(vw, vh));
+      const w = Math.round(vw * scale), h = Math.round(vh * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (facing === 'user'){ ctx.translate(w, 0); ctx.scale(-1, 1); } // match mirrored preview
+      ctx.drawImage(video, 0, 0, w, h);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      applyVintage(ctx, w, h);
+      stampPhoto(ctx, w, h);
+
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
+      if (!blob) throw new Error('capture failed');
+
+      const shotNo = TOTAL_SHOTS - shotsLeft + 1;
+      const name = 'tuc-snap-' + String(shotNo).padStart(2, '0') + '.jpg';
+      const url = URL.createObjectURL(blob);
+      photos.push({ blob, url, name });
+      addThumb(photos.length - 1);
+
+      // wind the film
+      shotsLeft--;
+      counterNum.textContent = shotsLeft;
+      counterNum.classList.add('tick');
+      winder.style.backgroundPosition = '0 ' + (TOTAL_SHOTS - shotsLeft) * 6 + 'px';
+      setTimeout(() => counterNum.classList.remove('tick'), 140);
+
+      rollCount.hidden = false;
+      rollCount.textContent = photos.length;
+
+      // instant save to phone
+      downloadPhoto(photos[photos.length - 1]);
+      showToast('📸 Snap ' + shotNo + ' saved · ' + shotsLeft + ' left');
+
+      if (shotsLeft <= 0){
+        setTimeout(() => { finishedScreen.hidden = false; }, 500);
+      }
+    }catch(e){
+      showToast('Hmm, that shot failed — try again');
+    }finally{
+      busy = false;
+      shutter.disabled = shotsLeft <= 0;
+    }
+  }
+
+  /* ---------- saving ---------- */
+  function downloadPhoto(p){
+    const a = document.createElement('a');
+    a.href = p.url;
+    a.download = p.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  async function sharePhoto(p){
+    const file = new File([p.blob], p.name, { type: 'image/jpeg' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })){
+      try{
+        await navigator.share({ files: [file], title: 'TUC Pilot Edition snap' });
+        return;
+      }catch(e){ if (e && e.name === 'AbortError') return; }
+    }
+    downloadPhoto(p);
+    showToast('Downloaded — check your files/photos');
+  }
+
+  /* ---------- gallery ---------- */
+  function addThumb(index){
+    const p = photos[index];
+    const btn = document.createElement('button');
+    btn.className = 'thumb';
+    btn.setAttribute('aria-label', 'View snap ' + (index + 1));
+    const img = document.createElement('img');
+    img.src = p.url;
+    img.alt = 'Snap ' + (index + 1);
+    btn.appendChild(img);
+    btn.addEventListener('click', () => openViewer(index));
+    galGrid.appendChild(btn);
+  }
+  function openViewer(index){
+    currentPhoto = photos[index];
+    viewerImg.src = currentPhoto.url;
+    viewer.hidden = false;
+  }
+
+  /* ---------- events ---------- */
+  document.getElementById('start-btn').addEventListener('click', startCamera);
+  document.getElementById('retry-btn').addEventListener('click', startCamera);
+  shutter.addEventListener('click', takePhoto);
+  flipBtn.addEventListener('click', () => {
+    facing = facing === 'environment' ? 'user' : 'environment';
+    startCamera();
+  });
+  document.getElementById('gallery-btn').addEventListener('click', () => gallery.classList.add('open'));
+  document.getElementById('gallery-close').addEventListener('click', () => gallery.classList.remove('open'));
+  document.getElementById('finished-gallery-btn').addEventListener('click', () => gallery.classList.add('open'));
+  document.getElementById('reload-film-btn').addEventListener('click', () => {
+    shotsLeft = TOTAL_SHOTS;
+    counterNum.textContent = shotsLeft;
+    finishedScreen.hidden = true;
+    shutter.disabled = !stream;
+    showToast('🎞️ New roll loaded — 24 exposures');
+  });
+  document.getElementById('share-btn').addEventListener('click', () => currentPhoto && sharePhoto(currentPhoto));
+  document.getElementById('download-btn').addEventListener('click', () => {
+    if (currentPhoto){ downloadPhoto(currentPhoto); showToast('Downloaded ⬇'); }
+  });
+  document.getElementById('viewer-close').addEventListener('click', () => { viewer.hidden = true; });
+  viewer.addEventListener('click', e => { if (e.target === viewer) viewer.hidden = true; });
+
+  // pause/resume camera when tab visibility changes (saves battery, iOS-friendly)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden){ stopCamera(); }
+    else if (startScreen.hidden && errorScreen.hidden){ startCamera(); }
+  });
+})();
+</script>
+</body>
+</html>
