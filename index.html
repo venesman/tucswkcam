@@ -59,6 +59,22 @@
 
   /* film counter window + winder — the signature */
   .counter-cluster{display:flex;align-items:center;gap:8px}
+  .flash-switch{
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:7px 9px;border-radius:9px;
+    background:linear-gradient(180deg,var(--cream),#DECFAF);
+    box-shadow:0 2px 0 var(--kraft-deep), 0 3px 5px rgba(0,0,0,.2);
+  }
+  .flash-switch:active{transform:translateY(1px);box-shadow:0 1px 0 var(--kraft-deep)}
+  .flash-switch.off{filter:grayscale(.6);opacity:.72}
+  .fs-label{font-size:7.5px;font-weight:700;letter-spacing:1px;color:var(--kraft-deep)}
+  .led{
+    width:10px;height:10px;border-radius:50%;
+    background:#7a6a4a;box-shadow:inset 0 1px 2px rgba(0,0,0,.4);
+  }
+  .led.ready{background:#FF7A1A;box-shadow:0 0 8px rgba(255,122,26,.9)}
+  .led.charging{background:#FF7A1A;animation:led-blink .45s infinite alternate}
+  @keyframes led-blink{from{opacity:.2;box-shadow:none}to{opacity:1;box-shadow:0 0 8px rgba(255,122,26,.9)}}
   .counter-window{
     background:#1c1710;border-radius:6px;padding:5px 10px;text-align:center;
     box-shadow:inset 0 3px 6px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.25);
@@ -242,6 +258,10 @@
       </div>
     </div>
     <div class="counter-cluster">
+      <button class="flash-switch" id="flash-switch" aria-pressed="true" aria-label="Flash on/off">
+        <span class="led ready" id="flash-led"></span>
+        <span class="fs-label">FLASH</span>
+      </button>
       <div class="counter-window">
         <div class="num" id="counter-num">24</div>
         <div class="lbl">EXPOSURES</div>
@@ -338,19 +358,21 @@
      site updates in about a minute. Your QR code stays the same.
      ============================================================ */
   const SETTINGS = {
-    shots: 24,                    // exposures per roll
+    shots: 27,                    // exposures per roll (classic FunSaver = 27)
     dateStamp: "21 07 '26",       // orange date stamp on photos
     brandStamp: "TUC \u267B @tucswk", // green badge on photos
 
-    // Film look — recalibrated so 1.0 = real flash-disposable look.
+    // Film look — tuned to Kodak FunSaver (Kodak 800 film):
+    // warm, nostalgic and VIBRANT — not washed out.
     // 0 = off, 0.5 = subtle, 1.5 = strong, 2 = maximum
-    warmth: 1.0,                  // warm highlights / cooler shadows
-    fade: 1.0,                    // matte, lifted blacks
-    grain: 1.2,                   // fine high-ISO film grain
-    vignette: 1.2,                // background drop-off from the flash
-    desaturation: 0.9,            // slightly muted colours
-    flashIntensity: 1.2,          // bright flash bloom on the subject
-    lightLeak: 1.0                // random red streak on ~1 in 4 photos (0 = never)
+    warmth: 1.15,                 // golden Kodak warmth
+    fade: 0.8,                    // slight matte lift, keeps punchy blacks
+    grain: 1.3,                   // ISO 800 film grain
+    vignette: 1.0,                // background drop-off from the flash
+    desaturation: 0.4,            // low = Kodak's signature vibrant colours
+    flashIntensity: 1.3,          // flash bloom when the flash is switched on
+    flashRechargeSeconds: 3,      // flash recharge time between shots
+    lightLeak: 0.8                // random red streak on ~1 in 4 photos (0 = never)
   };
   /* ================= end of settings ========================= */
 
@@ -394,6 +416,35 @@
   let audioCtx = null;
   let toastTimer = null;
 
+  /* ---------- manual flash switch + recharge (like a real FunSaver) ---------- */
+  const flashSwitch = document.getElementById('flash-switch');
+  const flashLed = document.getElementById('flash-led');
+  const flashCast = document.querySelector('.flash-cast');
+  let flashOn = true;
+  let flashReady = true;
+  let rechargeTimer = null;
+  const RECHARGE_MS = Math.max(0, (SETTINGS.flashRechargeSeconds || 0)) * 1000;
+
+  function updateFlashUI(){
+    flashSwitch.classList.toggle('off', !flashOn);
+    flashSwitch.setAttribute('aria-pressed', flashOn);
+    flashLed.className = 'led' + (flashOn ? (flashReady ? ' ready' : ' charging') : '');
+    // live preview bloom only when flash is on and charged
+    flashCast.style.opacity = (flashOn && flashReady)
+      ? Math.min(1, 0.5 * FX.fl).toFixed(3) : 0;
+  }
+  function startRecharge(){
+    flashReady = false;
+    updateFlashUI();
+    clearTimeout(rechargeTimer);
+    rechargeTimer = setTimeout(() => { flashReady = true; updateFlashUI(); }, RECHARGE_MS);
+  }
+  flashSwitch.addEventListener('click', () => {
+    flashOn = !flashOn;
+    updateFlashUI();
+    showToast(flashOn ? '\u26A1 Flash on' : 'Flash off');
+  });
+
   /* ---------- apply SETTINGS to live preview + labels ---------- */
   video.style.filter =
     'sepia(' + (0.20 * FX.w).toFixed(3) + ') ' +
@@ -402,7 +453,7 @@
     'brightness(' + (1 + 0.05 * FX.f).toFixed(3) + ') ' +
     'hue-rotate(' + (-6 * FX.w).toFixed(1) + 'deg)';
   document.querySelector('.warm-cast').style.opacity = (0.55 * FX.w).toFixed(3);
-  document.querySelector('.flash-cast').style.opacity = Math.min(1, 0.5 * FX.fl).toFixed(3);
+  updateFlashUI();
   document.querySelector('.grain').style.opacity = (0.09 * FX.g).toFixed(3);
   document.querySelector('.vignette').style.opacity = Math.min(1, FX.v);
   document.querySelector('.live-stamp').textContent = DATE_STAMP;
@@ -484,7 +535,7 @@
      Tuned to real flash-disposable photos: punchy contrast, matte lifted
      blacks, warm highlights with cooler shadows, fine grain, flash bloom,
      and an occasional red light-leak streak. ---------- */
-  function applyVintage(ctx, w, h){
+  function applyVintage(ctx, w, h, flashActive){
     const {w: W, f: F, g: G, v: V, d: D, fl: FL, ll: LL} = FX;
     // build tone-curve lookup tables (fast, identical results on iOS + Android)
     const lutR = new Uint8ClampedArray(256), lutG = new Uint8ClampedArray(256), lutB = new Uint8ClampedArray(256);
@@ -495,9 +546,9 @@
       let y = x + (s - x) * 0.42;
       // matte fade — lift the blacks without milking the highlights
       y = y + 0.12 * F * (1 - y) * (1 - y);
-      // channel curves: warm highlights, cooler shadows, hint of magenta
-      lutR[i] = Math.pow(y, 1 - 0.11 * W) * (1 + 0.025 * W) * 255;
-      lutG[i] = Math.pow(y, 1 - 0.015 * W) * (1 - 0.018 * W) * 255;
+      // channel curves: Kodak golden warmth — warm yellow-red highlights, blues pulled down
+      lutR[i] = Math.pow(y, 1 - 0.11 * W) * (1 + 0.03 * W) * 255;
+      lutG[i] = Math.pow(y, 1 - 0.03 * W) * (1 + 0.008 * W) * 255;
       lutB[i] = Math.pow(y, 1 + 0.13 * W) * 255;
     }
     const imgData = ctx.getImageData(0, 0, w, h);
@@ -513,7 +564,7 @@
     }
     ctx.putImageData(imgData, 0, 0);
     // simulated flash — bright bloom on the subject, like direct on-camera flash
-    if (FL > 0){
+    if (FL > 0 && flashActive){
       const cx = w/2, cy = h*0.45;
       const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w,h)*0.58);
       glow.addColorStop(0, 'rgba(255,247,232,' + Math.min(1, 0.30 * FL).toFixed(3) + ')');
@@ -585,9 +636,12 @@
     if (busy || shotsLeft <= 0 || !stream) return;
     busy = true;
     shutter.disabled = true;
+    const flashFired = flashOn && flashReady;
     clickSound();
-    flashFx.classList.add('pop');
-    setTimeout(() => flashFx.classList.remove('pop'), 120);
+    if (flashFired){
+      flashFx.classList.add('pop');
+      setTimeout(() => flashFx.classList.remove('pop'), 120);
+    }
 
     try{
       const vw = video.videoWidth, vh = video.videoHeight;
@@ -602,8 +656,9 @@
       ctx.drawImage(video, 0, 0, w, h);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-      applyVintage(ctx, w, h);
+      applyVintage(ctx, w, h, flashFired);
       stampPhoto(ctx, w, h);
+      if (flashFired) startRecharge(); // flash needs to recharge, like the real thing
 
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
       if (!blob) throw new Error('capture failed');
